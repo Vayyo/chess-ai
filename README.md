@@ -1,31 +1,34 @@
-# chess-ai
+# ♟️ chess-ai
 
-Шахматный движок на Rust с генерацией ходов на битбордах, поиском и NNUE-оценкой,
-обученной на самоигре. Бинарник работает как UCI-движок или локальный веб-сервер.
+> Шахматный движок на Rust: легальные ходы на битбордах, поиск с NNUE-оценкой и игра через UCI или локальный браузер.
 
-## Структура
+![Rust edition 2024](https://img.shields.io/badge/Rust-edition%202024-orange)
+![UCI](https://img.shields.io/badge/protocol-UCI-blue)
 
-| Крейт | Что внутри |
+---
+
+## ✨ Возможности
+
+| Возможность | Как пользоваться |
 |---|---|
-| `crates/movegen` | Битборды, легальная генерация ходов (check/pin-маски), copy-make `Board`, Zobrist, FEN, perft. Атаки дальнобойных фигур: PEXT при BMI2 (x86_64), иначе fancy magic bitboards; таблицы генерирует `build.rs`. |
-| `crates/engine` | UCI-движок, бинарник `chess-ai`: итеративное углубление, PVS, таблица транспозиций (опция `Hash`), null move pruning, LMR, quiescence, сортировка (TT-ход, MVV-LVA, killers, history), продление при шахе, повторения и правило 50 ходов. Оценка — NNUE: два аккумулятора перспектив, инкрементальное обновление при ходе (`crates/engine/src/nnue.rs`). |
-| `trainer` | Обучение сети в [bullet](https://github.com/jw1912/bullet) (нужна CUDA, поэтому крейт отдельный и в workspace не входит). |
+| ♟️ UCI | Подключить `chess-ai` к шахматному GUI; есть опция `Hash`, команды `go perft <N>` и `d`. |
+| 🌐 Игра в браузере | Запустить `serve`: уровни от «полная сила» до случайных ходов, отмена хода и подсказка. Остальные уровни, кроме «полной силы», — условные пресеты, а не рейтинги Elo. |
+| 🧠 NNUE | Квантованная сеть из `nets/current.bin` встраивается при сборке; для игры не нужны отдельные файлы данных. |
+| 🧪 Эксперименты | `datagen` для самоигры, отдельный CUDA-тренер и скрипты SPRT/калибровки; подготовка внешних инструментов нужна только для этих задач. |
 
-Текущая сеть — `nets/current.bin`, встроена в бинарник при сборке.
+---
 
-## Быстрый старт
+## 🚀 Быстрый старт
 
-Нужен Rust с поддержкой edition 2024 (Cargo), а для браузерного режима — браузер.
-Движок использует встроенный при сборке `nets/current.bin`; отдельно загружать сеть
-для игры не нужно. Из корня проекта:
+Нужен Rust/Cargo с поддержкой edition 2024. Все команды ниже запускаются из корня
+проекта; веса `nets/current.bin` нужны при сборке и входят в исходный код.
 
 ```sh
 cargo build --release
-cargo test --workspace
 ./target/release/chess-ai
 ```
 
-По умолчанию запускается UCI. Введите в запущенный процесс команды по одной строке:
+По умолчанию запускается UCI. Введите в открытый процесс по одной строке:
 
 ```text
 uci
@@ -35,37 +38,50 @@ go depth 4
 quit
 ```
 
-Дождитесь `bestmove` перед `quit`. Для UCI-клиента укажите путь к
-`target/release/chess-ai`. Дополнительные команды: `go perft <N>` (разбивка по
-ходам) и `d` (доска, FEN и хеш). `./target/release/chess-ai bench [depth]`
+Дождитесь `bestmove` перед `quit`. В UCI-клиенте укажите путь к
+`target/release/chess-ai`. Для проверки ходов есть `go perft <N>` (разбивка по
+ходам) и `d` (доска, FEN, хеш). `./target/release/chess-ai bench [depth]`
 измеряет поиск по фиксированным позициям.
 
-Локальная игра в браузере:
+**Игра в браузере** (запустите отдельно):
 
 ```sh
 ./target/release/chess-ai serve 8099
 ```
 
-Откройте `http://127.0.0.1:8099/`. Без номера порта также используется 8099;
-сервер слушает только loopback. Страница встроена в бинарник
-(`crates/engine/assets/`). Есть уровни «полная сила», «сложно», «средне»,
-«легко», «новичок» и случайные ходы; можно отменить ход и запросить подсказку.
+Откройте <http://127.0.0.1:8099/>. Без аргумента порт тоже 8099; сервер
+слушает только loopback. Страница встроена в бинарник (`crates/engine/assets/`),
+браузеру не нужны внешние ресурсы. Есть отмена хода и подсказка.
 
-`.cargo/config.toml` собирает под процессор текущей машины (`target-cpu=native`):
-такой бинарник может не работать на другом CPU. Для сборки под другую машину
-подберите соответствующий `RUSTFLAGS="-C target-cpu=..."`; на процессорах с
-медленным PEXT можно задать `MOVEGEN_NO_PEXT=1` для magic bitboards.
+**Переносимость сборки:** `.cargo/config.toml` включает `target-cpu=native`;
+такой бинарник может не запуститься на другом CPU. Для другой машины подберите
+подходящий `RUSTFLAGS="-C target-cpu=..."`. При медленном PEXT можно собирать
+с `MOVEGEN_NO_PEXT=1` (magic bitboards).
 
-## Сеть и данные
+## 🧩 Устройство движка
 
-`nets/current.bin` — квантованные веса NNUE, необходимые для сборки и встроенные
-через `include_bytes!`. Данные самоигры (`data/`), сторонние инструменты и
-книги дебютов (`tools/`), снимки обучения (`trainer/checkpoints/`) не нужны для
-игры и не входят в распространяемый исходный код. Лицензия проекта не указана.
+| Компонент | Роль |
+|---|---|
+| `crates/movegen` | `Board` (copy-make), FEN, Zobrist, perft и легальные ходы с check/pin-масками. Для дальнобойных фигур — PEXT при BMI2 на x86_64, иначе fancy magic bitboards; таблицы строит `build.rs`. |
+| `crates/engine` | Бинарник `chess-ai`: итеративное углубление, PVS, таблица транспозиций (`Hash`), null move, LMR, quiescence, порядок ходов (TT, MVV-LVA, killers, history), продление при шахе, повторения и правило 50 ходов. |
+| `crates/engine/src/nnue.rs` | Два аккумулятора перспектив с инкрементальным обновлением; веса встроены из `nets/current.bin` через `include_bytes!`. |
+| `trainer` | Отдельный от workspace крейт для обучения через [bullet](https://github.com/jw1912/bullet); требует CUDA. |
 
-## Данные для обучения
+---
+
+## 🧠 Сеть и данные
+
+Квантованные веса `nets/current.bin` необходимы для сборки. Данные самоигры
+(`data/`), сторонние инструменты и книга дебютов (`tools/`), снимки обучения
+(`trainer/checkpoints/`) **не поставляются** и не нужны для игры. Лицензия
+проекта не указана.
+
+### Генерация позиций
+
+Пример длительного запуска самоигры (параметры можно уменьшить):
 
 ```sh
+mkdir -p data
 ./target/release/chess-ai datagen data/gen0.bin --threads 5 --positions 100000000 --nodes 5000 --seed 1
 ```
 
@@ -75,100 +91,94 @@ quit
 полуходов после 60-го). Формат — `ChessBoard` bullet (32 байта); файл дописывается,
 оборванная запись в конце отрезается при следующем запуске.
 
-Проверка и перемешивание — утилитами bullet (`cargo build -r -p bullet-utils` в `tools/bullet`):
+Для проверки и перемешивания потребуется отдельно полученный [bullet](https://github.com/jw1912/bullet)
+с `bullet-utils` (`cargo build -r -p bullet-utils` в его каталоге); команды ниже
+предполагают, что `bullet-utils` доступен в `PATH`:
 
 ```sh
 bullet-utils validate -i data/gen0.bin
 bullet-utils shuffle -i data/gen0.bin -o data/gen0-shuffled.bin -m 4096
 ```
 
-## Обучение сети
+### Обучение NNUE
 
 ```sh
-cd trainer && cargo build --release          # отдельно от workspace; требуется CUDA
-./target/release/trainer <net-id> ../data/gen0.bin --epochs 20 --wdl 0.3 --lr 0.001
+cd trainer
+cargo build --release # отдельно от workspace; требуется CUDA
+./target/release/trainer my-net ../data/gen0.bin --epochs 20 --wdl 0.3 --lr 0.001
+cd ..
 ```
 
-Архитектура `(768 → 256)x2 → 1` SCReLU, квантование QA=255 / QB=64. Цель —
-`wdl * итог партии + (1 - wdl) * sigmoid(оценка поиска / 400)`. Одна эпоха — один
-проход по данным; `--epochs` и есть horizon расписания обучения. Результат:
-`trainer/checkpoints/<net-id>-<эпоха>/quantised.bin` — его и нужно положить
-в `nets/current.bin`. В одном локальном замере на GTX 1660 SUPER обучение шло
-~6 млн позиций/с.
+Архитектура `(768 → 256)×2 → 1` SCReLU, квантование QA=255 / QB=64. Цель —
+`wdl * итог партии + (1 - wdl) * sigmoid(оценка поиска / 400)`.
+Одна эпоха — один проход по данным; `--epochs` задаёт горизонт расписания.
+Результат — `trainer/checkpoints/my-net-<эпоха>/quantised.bin`: для использования
+скопируйте выбранные веса в `nets/current.bin` и пересоберите движок.
+В одном локальном замере на GTX 1660 SUPER обучение шло около 6 млн позиций/с;
+это не гарантированная скорость. После замены сети проверьте
+`cargo test --workspace`, `./target/release/chess-ai bench`, затем SPRT.
 
-Проверка сети после подмены: `cargo test --workspace`, `chess-ai bench`, затем SPRT (см. ниже).
+---
 
-## Замеры силы (SPRT)
+## 📊 Измерение силы
 
-Разовая подготовка (всё в `tools/`, в git не попадает):
+**SPRT** сравнивает две версии между собой, а не присваивает абсолютный рейтинг.
+История экспериментов — [журнал SPRT](docs/sprt-log.md).
+Нужны отдельно установленные [fastchess](https://github.com/Disservin/fastchess)
+и [книга дебютов Stockfish](https://github.com/official-stockfish/books):
+скрипт ожидает `tools/fastchess/fastchess` и `tools/8moves_v3.pgn`.
+Разовая подготовка из корня проекта:
 
 ```sh
-mkdir -p tools && cd tools
-git clone --depth 1 https://github.com/Disservin/fastchess.git && make -C fastchess -j
-curl -LO https://github.com/official-stockfish/books/raw/master/8moves_v3.pgn.zip && unzip 8moves_v3.pgn.zip
+mkdir -p tools
+git clone --depth 1 https://github.com/Disservin/fastchess.git tools/fastchess
+make -C tools/fastchess -j
+curl -L https://github.com/official-stockfish/books/raw/master/8moves_v3.pgn.zip -o tools/8moves_v3.pgn.zip
+(cd tools && unzip 8moves_v3.pgn.zip)
 ```
 
-Проверка изменения против базовой ревизии:
+`scripts/sprt.sh <base-rev> [new-rev]` сравнивает ревизии; без второго аргумента
+использует текущее рабочее дерево. Пример команды:
 
 ```sh
-scripts/sprt.sh <base-rev> [new-rev]      # без new-rev — текущее рабочее дерево
 TC=10+0.1 CONCURRENCY=5 ELO0=0 ELO1=5 scripts/sprt.sh HEAD~1 HEAD
 ```
 
-`scripts/build-rev.sh <rev>` собирает любую ревизию в `tools/bin/chess-ai-<sha>`.
+`scripts/build-rev.sh <rev>` собирает ревизию в `tools/bin/chess-ai-<sha>`;
+для режимов по узлам есть `NODES=50000` (они не показывают изменение скорости).
+Для осмысленного сравнения учитывайте одинаковые сборку, книгу и контроль времени.
 
-## Абсолютная сила
-
-Матчи против себя дают только относительные числа. Правильный якорь — движок с
-опубликованным рейтингом (CCRL), играющий в полную силу.
-
-Удобнее всего брать несколько версий одного движка: у них плотная лестница
-рейтингов, и точку 50% видно с шагом ~100 Elo. Пример с Princhess
-(блиц-рейтинги CCRL на 2026-09-27: 0.12.0 = 2724, 0.13.0 = 2833, 0.14.1 = 2947,
-0.15.1 = 3040, 0.16.0 = 3091, 0.18.0 = 3184, 0.22.0 = 3253):
+**Калибровка с внешним движком.** В [журнале калибровки](docs/calibration-log.md)
+записан локальный результат порядка **3000** по шкале CCRL-блица в конкретных
+матчах с Princhess (например, ≈3010 против 0.14.1 на 50 партиях).
+Это не универсальный или официальный рейтинг chess-ai: контроль и железо
+отличаются от CCRL, выборка мала. Пример воспроизведения из корня проекта
+(после подготовки fastchess и книги выше; рейтинг соперника сверяйте с
+[CCRL Blitz](https://computerchess.org.uk/ccrl/404/)):
 
 ```sh
-git clone --depth 1 -b 0.14.1 https://github.com/princesslana/princhess.git /tmp/prin
-cd /tmp/prin && RUSTFLAGS="-C target-cpu=native" cargo build --release
-
+git clone --depth 1 -b 0.14.1 https://github.com/princesslana/princhess.git tools/princhess
+(cd tools/princhess && RUSTFLAGS="-C target-cpu=native" cargo build --release)
 OPPONENT_NAME=princhess-0.14.1 CCRL=2947 scripts/calibrate.sh \
-    /tmp/prin/target/release/princhess 50 tc=60+0.6
+  "$PWD/tools/princhess/target/release/princhess" 50 tc=60+0.6
 ```
 
-Своя оценка = рейтинг соперника плюс поправка за счёт матча
-(`-400 * log10(1 / доля_очков - 1)`); при счёте 50% она равна рейтингу соперника.
-Матч пишет рядом с PGN файлы `.rating` (рейтинг соперника) и `.opponent`, по ним
-`scripts/dashboard.sh` подписывает матчи.
+Показатель CCRL=2947 для Princhess 0.14.1 взят на 2026-09-27. Оценка равна
+рейтингу соперника плюс `-400 * log10(1 / доля_очков - 1)`; при 50% поправка
+нулевая. Скрипт сохраняет PGN и файлы `.rating`/`.opponent` для
+`scripts/dashboard.sh`.
 
-### Четыре ловушки
+При интерпретации матчей:
 
-- **`UCI_LimitStrength` + `UCI_Elo` у Stockfish — не рейтинг.** Движок ищет с полной
-  силой, а затем намеренно выбирает не лучший ход из нескольких линий
-  (`src/search.cpp`: `Skill::pick_best`). Это подмешивание зевков, и шкала сжатая:
-  две точки (2000 и 2600) дают для нас разные оценки — ≈2390 и ≈2775.
-- **Проверяйте, что матч не выигран на флажке.** Смотрите `Termination` в PGN:
-  должно быть в основном `normal`, а не `time forfeit`. Старые движки на быстрых
-  контролях не учитывают приращение и просрочивают (у Stockfish 2.0.1 на `10+0.1`
-  было 15 просрочек из 38 партий, глубина 6-7 вместо 18).
-- **Движки 2000-х не понимают конвейер команд.** fastchess шлёт `isready` и следующий
-  `position`, пока идёт поиск; Stockfish 1.x/2.x от этого не отвечает ходом вовремя.
-  Обёртка `scripts/uci-serialize.py` придерживает `position`/`go` до `bestmove`.
-- **Собирайте соперника с той же оптимизацией, что и свой движок.** По умолчанию
-  Rust целится в базовый x86-64 (только SSE2): против такого бинарника легко набрать
-  лишние 200-400 «Elo». Нужен `RUSTFLAGS="-C target-cpu=native"`.
+- `UCI_LimitStrength`/`UCI_Elo` у Stockfish выбирают ослабленные ходы, это не
+  опубликованный рейтинг соперника (в локальном сравнении отметки 2000 и 2600
+  давали несогласующиеся оценки ≈2390 и ≈2775).
+- Проверяйте `Termination` в PGN: старые движки могут проигрывать по времени,
+  не учитывая приращение (Stockfish 2.0.1: 15 просрочек из 38 на `10+0.1`).
+  Для старых UCI-движков, которым мешает конвейер команд fastchess, есть
+  `scripts/uci-serialize.py`.
+- Соперника тоже собирайте с `RUSTFLAGS="-C target-cpu=native"`: сравнение с
+  базовым x86-64 может дать ложное преимущество в сотни Elo.
 
-Результаты калибровки — [docs/calibration-log.md](docs/calibration-log.md) (оценка ≈3010
-в условиях зафиксированных матчей, не универсальный рейтинг).
-
-Для сверки с внешним пулом можно поднять движок ботом на Lichess (`lichess-bot`,
-токен бот-аккаунта) — это даст рейтинг Glicko из реальных партий, но по своей шкале.
-
-## План
-
-1. ~~Генерация ходов, UCI, базовый поиск~~
-2. ~~Таблица транспозиций, killer/history, null move, LMR; SPRT-инфраструктура~~ (результаты — [docs/sprt-log.md](docs/sprt-log.md))
-3. ~~Генератор данных самоигры (многопоточный, формат bullet)~~
-4. ~~Обучение NNUE в [bullet](https://github.com/jw1912/bullet)~~
-5. ~~Инференс NNUE: аккумулятор, инкрементальные обновления~~ (SIMD/AVX2 — отдельный шаг: сейчас 3,5 млн узлов/с против 6,1 на PST)
-6. Цикл: данные → обучение → SPRT → следующее поколение (идёт: gen1 пишется сетью gen0)
-7. Оценка: королевские корзины (`ChessBucketsMirrored`) в bullet + бакетные аккумуляторы в движке
+Внешние матчи через `lichess-bot` могут дать рейтинг Glicko в пуле Lichess,
+но он измеряется по другой шкале.
