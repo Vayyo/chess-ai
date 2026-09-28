@@ -1,0 +1,7 @@
+[package]
+name = "movegen"
+version.workspace = true
+edition.workspace = true
+description = "Bitboard legal move generation, copy-make boards, Zobrist hashing"
+
+[dependencies]

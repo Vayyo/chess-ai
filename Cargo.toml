@@ -1,0 +1,24 @@
+[workspace]
+resolver = "3"
+members = ["crates/movegen", "crates/engine"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+
+# Perft tests walk millions of nodes; keep debug assertions but optimize.
+[profile.test]
+opt-level = 3
+
+# build.rs searches magic numbers when BMI2 is unavailable.
+[profile.dev.build-override]
+opt-level = 3
+
+[profile.release.build-override]
+opt-level = 3

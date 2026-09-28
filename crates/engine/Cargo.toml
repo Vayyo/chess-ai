@@ -1,0 +1,17 @@
+[package]
+name = "engine"
+version.workspace = true
+edition.workspace = true
+description = "UCI chess engine"
+
+[[bin]]
+name = "chess-ai"
+path = "src/main.rs"
+
+[dependencies]
+movegen = { path = "../movegen" }
+parking_lot = "0.12"
+
+[dev-dependencies]
+# Reference parser for the training-data format written by datagen.
+bulletformat = "1.8.0"

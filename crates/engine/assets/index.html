@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>chess-ai — игра против движка</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<main>
+  <header>
+    <h1>chess-ai</h1>
+    <p class="sub">движок с сетью NNUE, обученной на партиях с самим собой</p>
+  </header>
+
+  <section class="play">
+    <div class="board-wrap">
+      <div id="board" class="board" aria-label="шахматная доска"></div>
+      <div id="promo" class="promo" hidden>
+        <span>превращение:</span>
+        <button data-piece="q">ферзь</button>
+        <button data-piece="r">ладья</button>
+        <button data-piece="b">слон</button>
+        <button data-piece="n">конь</button>
+      </div>
+    </div>
+
+    <aside class="panel">
+      <div class="row">
+        <span class="label">статус</span>
+        <strong id="status">загрузка…</strong>
+      </div>
+      <div class="row">
+        <span class="label">оценка</span>
+        <span id="info">—</span>
+      </div>
+      <div class="row">
+        <span class="label">вы играете</span>
+        <span>белыми</span>
+      </div>
+
+      <label class="row">
+        <span class="label">уровень</span>
+        <select id="level"></select>
+      </label>
+
+      <div class="buttons">
+        <button id="new">Новая партия</button>
+        <button id="undo">Отменить ход</button>
+        <button id="hintBtn">Подсказка</button>
+      </div>
+      <p id="hintText" class="hint" hidden></p>
+
+      <div class="row moves-row">
+        <span class="label">партия</span>
+        <ol id="moves"></ol>
+      </div>
+
+      <p class="hint">Ход: щёлкните по фигуре, затем по подсвеченному полю.
+        Можно перетаскивать. Ходы проверяет сам движок.</p>
+    </aside>
+  </section>
+</main>
+<script type="module" src="/app.js"></script>
+</body>
+</html>

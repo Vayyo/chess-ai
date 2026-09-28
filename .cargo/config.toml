@@ -1,0 +1,5 @@
+# BMI2 (PEXT), POPCNT, AVX2 for this machine. Binaries are not portable to older CPUs.
+# rustdoc needs the same features: movegen refuses to compile PEXT tables without BMI2.
+[build]
+rustflags = ["-C", "target-cpu=native"]
+rustdocflags = ["-C", "target-cpu=native"]

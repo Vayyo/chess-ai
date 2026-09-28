@@ -1,0 +1,8 @@
+/target
+# fastchess build, opening books, per-revision binaries, match PGNs (see scripts/)
+/tools
+# Generated training data
+/data
+/checkpoints
+/trainer/checkpoints/
+/trainer/target
